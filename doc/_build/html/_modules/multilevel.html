@@ -1,0 +1,175 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>multilevel &mdash; Multilevel 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="Multilevel 0.1 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Multilevel 0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for multilevel</h1><div class="highlight"><pre>
+<span class="sd">r&quot;&quot;&quot;Module implementing the multi-level modeling example for teacher</span>
+<span class="sd">scores in a school district.  The model is that each student score is </span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">  s_{ij} \sim N\left(\mu_j, \sigma_j\right)</span>
+
+<span class="sd">where the index :math:`i` labels students and the index :math:`j`</span>
+<span class="sd">labels teachers.  That is, we assume that the students of a particular</span>
+<span class="sd">teacher score in a bell curve with a mean and standard deviation</span>
+<span class="sd">(width) that is teacher-dependent.  We further assume that the</span>
+<span class="sd">population of teacher means, :math:`\mu_j` is itself drawn from a</span>
+<span class="sd">Normal distribution with an overall mean :math:`\mu` and standard</span>
+<span class="sd">deviation :math:`\sigma`:</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">  \mu_j \sim N\left( \mu, \sigma \right)</span>
+
+<span class="sd">and that the population of teacher standard deviations are drawn from</span>
+<span class="sd">a Log-normal distribution with parameters :math:`\mu_s` and</span>
+<span class="sd">:math:`\sigma_s`:</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">  \log \sigma_j \sim N\left( \mu_s, \sigma_s \right).</span>
+
+<span class="sd">Our goal is to use the population of student scores and</span>
+<span class="sd">student-teacher mappings to fit for :math:`\mu`, :math:`\sigma`,</span>
+<span class="sd">:math:`\mu_s`, :math:`\sigma_s`, :math:`\mu_j`, and :math:`\sigma_j`.</span>
+<span class="sd">The effect of the multi-level model (one level for student-teacher,</span>
+<span class="sd">and one level for teachers themselves) is to smoothly interpolate</span>
+<span class="sd">between an independent, per-teacher fit to student mean and variance,</span>
+<span class="sd">and a &quot;pooled&quot; simultaneous fit to all students at once.  </span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numpy.random</span> <span class="kn">as</span> <span class="nn">nr</span>
+
+<div class="viewcode-block" id="to_params"><a class="viewcode-back" href="../multilevel.html#multilevel.to_params">[docs]</a><span class="k">def</span> <span class="nf">to_params</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">nteachers</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot;Converts a numpy array into an array with named fields:</span>
+
+<span class="sd">    :param arr: The array to be converted.</span>
+
+<span class="sd">    :param nteachers: The number of teachers to be modeled.</span>
+
+<span class="sd">    :return: An array with labels </span>
+<span class="sd">    </span>
+<span class="sd">      ``mu`` </span>
+<span class="sd">        The mean of the distribution from which the teacher mean score</span>
+<span class="sd">        is drawn.</span>
+
+<span class="sd">      ``sigma``</span>
+<span class="sd">        The standard deviation of the distribution from which the</span>
+<span class="sd">        teacher mean score is drawn.</span>
+
+<span class="sd">      ``mus``</span>
+<span class="sd">        The :math:`\mu` parameter for the lognormal distribution from</span>
+<span class="sd">        which the teacher standard deviations are drawn.</span>
+
+<span class="sd">      ``sigmas``</span>
+<span class="sd">        The :math:`\sigma` parameter for the lognormal distribution</span>
+<span class="sd">        from which the teacher standard deviations are drawn.</span>
+
+<span class="sd">      ``mu_teacher``</span>
+<span class="sd">        The array of teacher mean scores (of length ``nteachers``).</span>
+
+<span class="sd">      ``sigma_teacher``</span>
+<span class="sd">        The array of teacher standard deviations (also of length</span>
+<span class="sd">        ``nteachers``).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">arr</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">([(</span><span class="s">&#39;mu&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">),</span>
+                              <span class="p">(</span><span class="s">&#39;sigma&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">),</span>
+                              <span class="p">(</span><span class="s">&#39;mus&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">),</span>
+                              <span class="p">(</span><span class="s">&#39;sigmas&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">),</span>
+                              <span class="p">(</span><span class="s">&#39;mu_teacher&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">,</span> <span class="n">nteachers</span><span class="p">)</span>
+                              <span class="p">(</span><span class="s">&#39;sigma_teacher&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">,</span> <span class="n">nteachers</span><span class="p">)]))</span>
+    </div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Multilevel 0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Will M. Farr.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
