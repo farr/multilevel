@@ -1,0 +1,230 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>multilevel &mdash; Multilevel 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="Multilevel 0.1 documentation" href="index.html" />
+    <link rel="prev" title="Welcome to Multilevel’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to Multilevel’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Multilevel 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-multilevel">
+<span id="multilevel"></span><h1>multilevel<a class="headerlink" href="#module-multilevel" title="Permalink to this headline">¶</a></h1>
+<p>Module implementing the multi-level modeling example for teacher
+scores in a school district.  The model is that each student score is</p>
+<div class="math">
+\[s_{ij} \sim N\left(\mu_j, \sigma_j\right)\]</div>
+<p>where the index <span class="math">\(i\)</span> labels students and the index <span class="math">\(j\)</span>
+labels teachers.  That is, we assume that the students of a particular
+teacher score in a bell curve with a mean and standard deviation
+(width) that is teacher-dependent.  We further assume that the
+population of teacher means, <span class="math">\(\mu_j\)</span> is itself drawn from a
+Normal distribution with an overall mean <span class="math">\(\mu\)</span> and standard
+deviation <span class="math">\(\sigma\)</span>:</p>
+<div class="math">
+\[\mu_j \sim N\left( \mu, \sigma \right)\]</div>
+<p>and that the population of teacher standard deviations are drawn from
+a Log-normal distribution with parameters <span class="math">\(\mu_\sigma\)</span> and
+<span class="math">\(\sigma_\sigma\)</span>:</p>
+<div class="math">
+\[\log \sigma_j \sim N\left( \mu_\sigma, \sigma_\sigma \right).\]</div>
+<p>Our goal is to use the population of student scores and
+student-teacher mappings to fit for <span class="math">\(\mu\)</span>, <span class="math">\(\sigma\)</span>,
+<span class="math">\(\mu_s\)</span>, <span class="math">\(\sigma_s\)</span>, <span class="math">\(\mu_j\)</span>, and <span class="math">\(\sigma_j\)</span>.
+The effect of the multi-level model (one level for student-teacher,
+and one level for teachers themselves) is to smoothly interpolate
+between an independent, per-teacher fit to student mean and variance,
+and a &#8220;pooled&#8221; simultaneous fit to all students at once.</p>
+<dl class="class">
+<dt id="multilevel.Posterior">
+<em class="property">class </em><tt class="descclassname">multilevel.</tt><tt class="descname">Posterior</tt><big>(</big><em>scores</em>, <em>teachers</em><big>)</big><a class="headerlink" href="#multilevel.Posterior" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Callable object used to compute the posterior probability of
+parameter values.</p>
+<dl class="method">
+<dt id="multilevel.Posterior.log_likelihood">
+<tt class="descname">log_likelihood</tt><big>(</big><em>parameters</em><big>)</big><a class="headerlink" href="#multilevel.Posterior.log_likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>The log of the likelihood of the given parameters, using the data
+stored in the posterior object.  The likelihood is</p>
+<div class="math">
+\[p\left(\left\{s_{ij}\right\} | \theta \right) \propto \prod_{j} \left[\prod_{i} N\left( s_{ij} | \mu_j, \sigma_j \right) \right] N\left( \mu_j | \mu, \sigma \right) N\left( \log \sigma_j | \mu_\sigma, \sigma_\sigma\right) \frac{1}{\sigma_j}\]</div>
+<p>That is, a normal PDF for each student score with the
+corresponding teacher mean and standard deviation, a normal
+PDF for each teacher mean with the global teacher mean and
+standard deviation, and a log-normal PDF for each teacher
+standard deviation with the global sigma parameters.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="multilevel.Posterior.log_prior">
+<tt class="descname">log_prior</tt><big>(</big><em>parameters</em><big>)</big><a class="headerlink" href="#multilevel.Posterior.log_prior" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log of the prior probability of the parameters.  In addition to the
+restriction that all :math`sigma` parameters must be
+positive, the prior is given by</p>
+<div class="math">
+\[p(\theta) \propto \frac{1}{\sigma} \frac{1}{\sigma_\sigma^2} \prod_j \frac{1}{\sigma_j}.\]</div>
+<p>This is the Jeffreys prior (see
+<a class="reference external" href="http://en.wikipedia.org/wiki/Jeffreys_prior">http://en.wikipedia.org/wiki/Jeffreys_prior</a> ) for the scale
+parameters.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="multilevel.nteachers_from_length">
+<tt class="descclassname">multilevel.</tt><tt class="descname">nteachers_from_length</tt><big>(</big><em>len</em><big>)</big><a class="headerlink" href="#multilevel.nteachers_from_length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a length, returns the number of teachers that would produce a
+parameter array of that length.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="multilevel.params_length">
+<tt class="descclassname">multilevel.</tt><tt class="descname">params_length</tt><big>(</big><em>nteachers</em><big>)</big><a class="headerlink" href="#multilevel.params_length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the length of the parameters array for a given number of
+teachers.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="multilevel.to_params">
+<tt class="descclassname">multilevel.</tt><tt class="descname">to_params</tt><big>(</big><em>arr</em>, <em>nteachers</em><big>)</big><a class="reference internal" href="_modules/multilevel.html#to_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#multilevel.to_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a numpy array into an array with named fields:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>arr</strong> &#8211; The array to be converted.</li>
+<li><strong>nteachers</strong> &#8211; The number of teachers to be modeled.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><p>An array with labels</p>
+<dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">mu</span></tt> </dt>
+<dd><p class="first last">The mean of the distribution from which the teacher mean score
+is drawn.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">sigma</span></tt></dt>
+<dd><p class="first last">The standard deviation of the distribution from which the
+teacher mean score is drawn.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">mus</span></tt></dt>
+<dd><p class="first last">The <span class="math">\(\mu\)</span> parameter for the lognormal distribution from
+which the teacher standard deviations are drawn.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">sigmas</span></tt></dt>
+<dd><p class="first last">The <span class="math">\(\sigma\)</span> parameter for the lognormal distribution
+from which the teacher standard deviations are drawn.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">mu_teacher</span></tt></dt>
+<dd><p class="first last">The array of teacher mean scores (of length <tt class="docutils literal"><span class="pre">nteachers</span></tt>).</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">sigma_teacher</span></tt></dt>
+<dd><p class="first last">The array of teacher standard deviations (also of length
+<tt class="docutils literal"><span class="pre">nteachers</span></tt>).</p>
+</dd>
+</dl>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to Multilevel&#8217;s documentation!</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/multilevel.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to Multilevel’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">Multilevel 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Will M. Farr.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
